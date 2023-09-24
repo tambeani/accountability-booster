@@ -1,80 +1,85 @@
-// src/routes/task.js
 const express = require('express');
+const sequelize = require('../config/sequelize');
 const router = express.Router();
-
-// Temporary array to store tasks
-const tasks = [];
+const Task = require('../models/task')(sequelize);
 
 // Create a new task
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const task = req.body;
-    tasks.push(task);
-    res.status(201).json(task);
+    const taskData = req.body;
+    const createdTask = await Task.create(taskData);
+    res.status(201).json(createdTask);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Read all tasks
-router.get('/', (req, res) => {
-  try {
-    res.json(tasks);
-  } catch (error) {
+router.get('/', async (req,res) =>{
+  try{
+    const allTasks = await Task.findAll();
+    res.status(200).json(allTasks);
+  } catch(error){
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal Server error' });
   }
 });
 
-// Read a single task by ID
-router.get('/:id', (req, res) => {
+// Get task by ID
+router.get('/:id', async (req, res) => {
   try {
-    const taskId = parseInt(req.params.id);
-    const task = tasks.find((t) => t.id === taskId);
+    const taskId = req.params.id;
+    const task = await Task.findByPk(taskId);
+
     if (!task) {
       res.status(404).json({ error: 'Task not found' });
     } else {
-      res.json(task);
+      res.status(200).json(task);
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal Server error' });
   }
 });
 
-// Update a task by ID
-router.put('/:id', (req, res) => {
+// Update task
+router.put('/:id', async (req, res) => {
   try {
-    const taskId = parseInt(req.params.id);
-    const updatedTask = req.body;
-    const taskIndex = tasks.findIndex((t) => t.id === taskId);
-    if (taskIndex === -1) {
+    const taskId = req.params.id;
+    const updatedData = req.body;
+
+    const [updatedRowsCount, updatedRows] = await Task.update(updatedData, {
+      where: { id: taskId },
+      returning: true,
+    });
+
+    if (updatedRowsCount === 0) {
       res.status(404).json({ error: 'Task not found' });
     } else {
-      tasks[taskIndex] = { ...tasks[taskIndex], ...updatedTask };
-      res.json(tasks[taskIndex]);
+      res.status(200).json(updatedRows[0]);
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal Server error' });
   }
 });
 
-// Delete a task by ID
-router.delete('/:id', (req, res) => {
+// Delete task
+router.delete('/:id', async (req, res) => {
   try {
-    const taskId = parseInt(req.params.id);
-    const taskIndex = tasks.findIndex((t) => t.id === taskId);
-    if (taskIndex === -1) {
+    const taskId = req.params.id;
+    const deletedRowCount = await Task.destroy({
+      where: { id: taskId },
+    });
+
+    if (deletedRowCount === 0) {
       res.status(404).json({ error: 'Task not found' });
     } else {
-      tasks.splice(taskIndex, 1);
       res.status(204).end();
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal Server error' });
   }
 });
 
